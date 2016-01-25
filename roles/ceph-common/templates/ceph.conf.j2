@@ -17,8 +17,8 @@ auth supported = none
 {% endif %}
 fsid = {{ fsid }}
 max open files = {{ max_open_files }}
-osd pool default pg num = {{ pool_default_pg_num }}
-osd pool default pgp num = {{ pool_default_pgp_num }}
+osd pool default pg num = {{ pool_default_pg_num }}    # Total PGs = (Total_number_of_OSD * 100) / max_replication_count
+osd pool default pgp num = {{ pool_default_pgp_num }}  # PGP = PG
 osd pool default size = {{ pool_default_size }}
 osd pool default min size = {{ pool_default_min_size }}
 osd pool default crush rule = {{ pool_default_crush_rule }}
