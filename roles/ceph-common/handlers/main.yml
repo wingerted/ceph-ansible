@@ -98,14 +98,6 @@
     rgw_group_name in group_names and
     not is_ceph_infernalis
 
-- name: restart ceph rgws on red hat
-  command: /etc/init.d/ceph-radosgw restart
-  when:
-    socketrgw.rc == 0 and
-    ansible_os_family == 'RedHat' and
-    rgw_group_name in group_names and
-    not is_ceph_infernalis
-
 - name: restart ceph rgws with systemd
   service:
     name: ceph-rgw@{{ ansible_hostname }}
@@ -123,13 +115,4 @@
     enabled: yes
   when:
     ansible_os_family == 'Debian' and
-    rgw_group_name in group_names
-
-- name: restart apache2
-  service:
-    name: httpd
-    state: restarted
-    enabled: yes
-  when:
-    ansible_os_family == 'RedHat' and
     rgw_group_name in group_names
