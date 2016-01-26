@@ -11,4 +11,4 @@
 
 - include: secure_cluster.yml
   when:
-    secure_cluster and
+    secure_cluster
