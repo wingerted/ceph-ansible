@@ -12,17 +12,7 @@
   when:
     ceph_origin == 'upstream' and
     not ceph_stable and
-    not ceph_dev and
-    not ceph_stable_ice and
-    not ceph_stable_rh_storage
-
-- name: verify that a method was chosen for red hat storage
-  fail:
-    msg: "choose between ceph_stable_rh_storage_cdn_install and ceph_stable_rh_storage_iso_install"
-  when:
-    ceph_stable_rh_storage and
-    not ceph_stable_rh_storage_cdn_install and
-    not ceph_stable_rh_storage_iso_install
+    not ceph_dev
 
 - name: make sure journal_size configured
   fail:

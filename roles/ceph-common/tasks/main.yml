@@ -8,31 +8,8 @@
 - include: ./misc/system_tuning.yml
   when: osd_group_name in group_names
 
-- include: ./pre_requisites/prerequisite_ice.yml
-  when: ceph_stable_ice
-
-- include: ./pre_requisites/prerequisite_rh_storage_iso_install.yml
-  when:
-    ceph_stable_rh_storage and
-    ceph_stable_rh_storage_iso_install
-
-- include: ./pre_requisites/prerequisite_rh_storage_cdn_install.yml
-  when:
-    ceph_stable_rh_storage and
-    ceph_stable_rh_storage_cdn_install
-
-- include: ./installs/install_on_redhat.yml
-  when: ansible_os_family == 'RedHat' and 
-        not mon_containerized_deployment
-
 - include: ./installs/install_on_debian.yml
   when: ansible_os_family == 'Debian'
-
-- include: ./installs/install_rgw_on_redhat.yml
-  when:
-    ansible_os_family == 'RedHat' and
-    radosgw_frontend == 'apache' and
-    rgw_group_name in group_names
 
 - include: ./installs/install_rgw_on_debian.yml
   when:
@@ -106,7 +83,6 @@
     - restart ceph mdss with systemd
     - restart ceph rgws
     - restart ceph rgws on ubuntu
-    - restart ceph rgws on red hat
     - restart ceph rgws with systemd
 
 - name: create rbd client directory (before infernalis)
