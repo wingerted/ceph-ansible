@@ -34,30 +34,3 @@ dummy:
 #
 
 #fetch_directory: fetch/
-
-#############
-# OPENSTACK #
-#############
-
-#openstack_config: false
-#openstack_glance_pool: images
-#openstack_cinder_pool: volumes
-#openstack_nova_pool: vms
-#openstack_cinder_backup_pool: backups
-#
-#openstack_keys:
-#  - { name: client.glance, value: "mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool={{ openstack_glance_pool }}'" }
-#  - { name: client.cinder, value: "mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool={{ openstack_cinder_pool }}, allow rwx pool={{ openstack_nova_pool }}, allow rx pool={{ openstack_glance_pool }}'"  }
-#  - { name: client.cinder-backup, value: "mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool={{ openstack_cinder_backup_pool }}'" }
-
-
-##########
-# DOCKER #
-##########
-
-#mon_containerized_deployment: false
-#ceph_mon_docker_username: ceph
-#ceph_mon_docker_imagename: "daemon"
-#ceph_mon_docker_interface: eth0
-#ceph_mon_docker_subnet: # subnet of the ceph_mon_docker_interface
-#ceph_mon_extra_envs: "MON_NAME={{ ansible_hostname }}" # comma separated variables
