@@ -125,9 +125,9 @@ dummy:
 
 ## OSD options
 #
-#journal_size: 0
-#pool_default_pg_num: 128
-#pool_default_pgp_num: 128
+#journal_size: 0 # OSD Journal Size = {2 * (expected throughput * filestore max sync interval)}
+#pool_default_pg_num: 128 # Total PGs = (Total_number_of_OSD * 100) / max_replication_count
+#pool_default_pgp_num: 128 # PGPs = PGS
 #pool_default_size: 2
 #pool_default_min_size: 1
 #public_network: 0.0.0.0/0
@@ -218,7 +218,27 @@ dummy:
 #     foo: 1234
 #     bar: 5678
 #
-#ceph_conf_overrides: {}
+#ceph_conf_overrides:
+#   global:
+#     rbd_cache_size: 33554432
+#     rbd_cache_max_dirty: 25165824
+#     rbd_cache_max_dirty_age: 1
+#   osd:
+#     filestore_min_sync_interval: 0.1
+#     filestore_queue_max_ops: 500
+#     filestore_queue_max_bytes: 10485760
+#     filestore_queue_committing_max_ops: 500
+#     filestore_queue_committing_max_bytes: 10485760000
+#     journal_max_write_bytes: 1073714824
+#     journal_max_write_entries: 10000
+#     journal_queue_max_ops: 50000
+#     journal_queue_max_bytes: 10485760000
+#     osd_op_threads: 2
+#     osd_disk_threads: 1
+#     osd_map_cache_size: 500
+#     osd_map_cache_bl_size: 50
+#     osd_max_write_size: 90
+#     osd_client_message_size_cap: 524288000
 
 
 #############
