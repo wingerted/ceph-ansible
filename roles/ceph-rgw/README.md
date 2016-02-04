@@ -8,8 +8,6 @@ It supports two methods to configure Rados Gateway:
 * with civetweb (default and preferred)
 * with Apache and CGI
 
-It can be configured to support a connection with OpenStack Keystone.
-
 # Requirements
 
 Nothing, it runs out of the box.
