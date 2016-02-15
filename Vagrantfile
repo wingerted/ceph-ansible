@@ -34,6 +34,19 @@ ansible_provision = proc do |ansible|
 
   # In a production deployment, these should be secret
   ansible.extra_vars = {
+      mon_containerized_deployment: 'true',
+      osd_containerized_deployment: 'true',
+      mds_containerized_deployment: 'true',
+      rgw_containerized_deployment: 'true',
+      restapi_containerized_deployment: 'true',
+      ceph_mon_docker_interface: ETH,
+      ceph_mon_docker_subnet: "#{SUBNET}.0/24",
+      ceph_osd_docker_extra_env: "CEPH_DAEMON=OSD_CEPH_DISK,OSD_JOURNAL_SIZE=100",
+      ceph_osd_docker_devices: settings['disks'],
+      ceph_rgw_civetweb_port: 8080
+    }
+  else
+    ansible.extra_vars = {
     ceph_stable: 'true',
     journal_collocation: 'true',
     journal_size: 100,
@@ -87,7 +100,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   (0..NRGWS - 1).each do |i|
     config.vm.define "rgw#{i}" do |rgw|
       rgw.vm.hostname = "ceph-rgw#{i}"
-      rgw.vm.network :private_network, ip: "#{SUBNET}.4#{i}"
+      rgw.vm.network :private_network, ip: "#{SUBNET}.5#{i}"
 
       # Virtualbox
       rgw.vm.provider :virtualbox do |vb|
