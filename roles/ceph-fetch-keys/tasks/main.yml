@@ -13,6 +13,13 @@
   with_items:
     - "{{ ceph_keys.stdout_lines }}"
 
+- name: read cluster uuid if it already exists
+  local_action: command cat {{ fetch_directory }}/ceph_cluster_uuid.conf
+    removes="{{ fetch_directory }}/ceph_cluster_uuid.conf"
+  changed_when: false
+  register: fsid
+  become: false
+
 - name: copy keys to the ansible server
   fetch:
     src: "{{ item }}"
