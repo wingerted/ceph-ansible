@@ -7,12 +7,20 @@
     - mons
     - osds
     - mdss
+    - rgws
+
   become: yes
+
+  roles:
+    - ceph-common
 
   vars:
 # When set to true both groups of packages are purged.
 # This can cause problem with qemu-kvm
     purge_all_packages: true
+
+# When set to true and raw _multi_journal is used then journal disk are also zapped
+    zap_journal_disks: true
 
     ceph_packages:
       - ceph
@@ -21,6 +29,7 @@
       - ceph-fuse
       - ceph-mds
       - ceph-release
+      - ceph-radosgw
 
     ceph_remaining_packages:
       - libcephfs1
@@ -84,6 +93,23 @@
     with_items: devices
     when:
      osd_group_name in group_names
+
+  - name: zap journal devices
+    shell: ceph-disk zap "{{ item }}"
+    with_items: "{{ raw_journal_devices|default([])|unique }}"
+    when:
+      osd_group_name in group_names and
+      raw_multi_journal and
+      zap_journal_disks 
+
+  - name: purge ceph packages with yum
+    yum:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+      - "{{ ceph_packages }}"
+    when:
+      ansible_pkg_mgr == 'yum'
 
   - name: purge ceph packages with apt
     apt:

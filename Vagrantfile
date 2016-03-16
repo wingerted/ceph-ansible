@@ -34,7 +34,9 @@ ansible_provision = proc do |ansible|
 
   # In a production deployment, these should be secret
   ansible.extra_vars = {
-    ceph_stable: 'true',
+
+    "ceph_#{settings['ceph_install_source']}"=> 'true',
+    journal_collocation: 'true',
     journal_size: 100,
     monitor_interface: ETH,
     cluster_network: "#{SUBNET}.0/24",

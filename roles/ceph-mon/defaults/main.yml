@@ -31,3 +31,6 @@ secure_cluster_flags:
   - nopgchange
   - nodelete
   - nosizechange
+
+# Enable the Calamari-backed REST API on a Monitor
+calamari: false
