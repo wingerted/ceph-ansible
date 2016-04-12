@@ -14,6 +14,7 @@ dummy:
 ###########
 
 #fetch_directory: fetch/
+#cluster: ceph # cluster name
 
 ###########
 # INSTALL #
@@ -24,6 +25,7 @@ dummy:
 #rgw_group_name: rgws
 #mds_group_name: mdss
 #restapi_group_name: restapis
+#rbdmirror_group_name: rbdmirrors
 
 # If check_firewall is true, then ansible will try to determine if the
 # Ceph ports are blocked by a firewall. If the machine running ansible
@@ -50,6 +52,7 @@ dummy:
 #  - epel-release
 #  - ntp
 #  - python-setuptools
+#  - libselinux-python
 
 #redhat_package_dependencies:
 #  - python-pycurl
@@ -175,9 +178,41 @@ dummy:
 #rbd_cache: "true"
 #rbd_cache_writethrough_until_flush: "true"
 #rbd_concurrent_management_ops: 20
-#rbd_client_directories: false # this will create rbd_client_log_path and rbd_client_admin_socket_path directories with proper permissions, this WON'T work if libvirt and kvm are installed
-#rbd_client_log_file: /var/log/rbd-clients/qemu-guest-$pid.log # must be writable by QEMU and allowed by SELinux or AppArmor
+
+#rbd_client_directories: false # this will create rbd_client_log_path and rbd_client_admin_socket_path directories with proper permissions
+
+# Permissions for the rbd_client_log_path and
+# rbd_client_admin_socket_path. Depending on your use case for Ceph
+# you may want to change these values. The default, which is used if
+# any of the variables are unset or set to a false value (like `null`
+# or `false`) is to automatically determine what is appropriate for
+# the Ceph version with non-OpenStack workloads -- ceph:ceph and 0770
+# for infernalis releases, and root:root and 1777 for pre-infernalis
+# releases.
+#
+# For other use cases, including running Ceph with OpenStack, you'll
+# want to set these differently:
+#
+# For OpenStack on RHEL, you'll want:
+#   rbd_client_directory_owner: "qemu"
+#   rbd_client_directory_group: "libvirtd" (or "libvirt", depending on your version of libvirt)
+#   rbd_client_directory_mode: "0755"
+#
+# For OpenStack on Ubuntu or Debian, set:
+#    rbd_client_directory_owner: "libvirt-qemu"
+#    rbd_client_directory_group: "kvm"
+#    rbd_client_directory_mode: "0755"
+#
+# If you set rbd_client_directory_mode, you must use a string (e.g.,
+# 'rbd_client_directory_mode: "0755"', *not*
+# 'rbd_client_directory_mode: 0755', or Ansible will complain: mode
+# must be in octal or symbolic form
+#rbd_client_directory_owner: null
+#rbd_client_directory_group: null
+#rbd_client_directory_mode: null
+
 #rbd_client_log_path: /var/log/rbd-clients/
+#rbd_client_log_file: "{{ rbd_client_log_path }}/qemu-guest-$pid.log" # must be writable by QEMU and allowed by SELinux or AppArmor
 #rbd_client_admin_socket_path: /var/run/ceph/rbd-clients # must be writable by QEMU and allowed by SELinux or AppArmor
 #rbd_default_features: 3
 #rbd_default_map_options: rw
@@ -185,7 +220,10 @@ dummy:
 
 ## Monitor options
 #
+# You must define either monitor_interface or monitor_address. Preference
+# will go to monitor_interface if both are defined.
 #monitor_interface: interface
+#monitor_address: 0.0.0.0
 #mon_use_fqdn: false # if set to true, the MON name used will be the fqdn in the ceph.conf
 #mon_osd_down_out_interval: 600
 #mon_osd_min_down_reporters: 7 # number of OSDs per host + 1
@@ -203,8 +241,8 @@ dummy:
 #journal_size: 0 # OSD Journal Size = {2 * (expected throughput * filestore max sync interval)}
 #pool_default_pg_num: 128 # Total PGs = (Total_number_of_OSD * 100) / max_replication_count
 #pool_default_pgp_num: 128 # PGPs = PGS
-#pool_default_size: 2
-#pool_default_min_size: 1
+#pool_default_size: 3
+#pool_default_min_size: 0 # 0 means no specific default; ceph will use (pool_default_size)-(pool_default_size/2) so 2 if pool_default_size=3
 #public_network: 0.0.0.0/0
 #cluster_network: "{{ public_network }}"
 #osd_mkfs_type: xfs
@@ -272,6 +310,7 @@ dummy:
 ## REST API options
 #
 #restapi_interface: "{{ monitor_interface }}"
+#restapi_address: "{{ monitor_address }}"
 #restapi_port: 5000
 #restapi_base_url: /api/v0.1
 #restapi_log_level: warning # available level are: critical, error, warning, info, debug
@@ -341,4 +380,8 @@ dummy:
 ##########
 
 #docker: false
+
+# Do not comment the variable mon_containerized_deployment_with_kv here. This variable is being used
+# by ceph.conf.j2 template. so it should always be defined
+#mon_containerized_deployment_with_kv: false
 

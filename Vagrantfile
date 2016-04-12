@@ -37,6 +37,7 @@ ansible_provision = proc do |ansible|
 
     "ceph_#{settings['ceph_install_source']}"=> 'true',
     journal_collocation: 'true',
+      pool_default_size: '2',
     journal_size: 100,
     monitor_interface: ETH,
     cluster_network: "#{SUBNET}.0/24",
@@ -63,11 +64,32 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     override.vm.synced_folder '.', '/home/vagrant/sync', disabled: true
   end
 
+  if BOX == 'openstack'
+    # OpenStack VMs
+    config.vm.provider :openstack do |os|
+      config.vm.synced_folder ".", "/home/#{USER}/vagrant", disabled: true
+      config.ssh.username = USER
+      config.ssh.private_key_path = settings['os_ssh_private_key_path']
+      config.ssh.pty = true
+      os.openstack_auth_url = settings['os_openstack_auth_url']
+      os.username = settings['os_username']
+      os.password = settings['os_password']
+      os.tenant_name = settings['os_tenant_name']
+      os.region = settings['os_region']
+      os.flavor = settings['os_flavor']
+      os.image = settings['os_image']
+      os.keypair_name = settings['os_keypair_name']
+      os.security_groups = ['default']
+      config.vm.provision "shell", inline: "true", upload_path: "/home/#{USER}/vagrant-shell"
+    end
+  end
+
   (0..CLIENTS - 1).each do |i|
     config.vm.define "client#{i}" do |client|
       client.vm.hostname = "ceph-client#{i}"
+      if !OSVM
       client.vm.network :private_network, ip: "#{SUBNET}.4#{i}"
-
+      end
       # Virtualbox
       client.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -94,7 +116,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   (0..NRGWS - 1).each do |i|
     config.vm.define "rgw#{i}" do |rgw|
       rgw.vm.hostname = "ceph-rgw#{i}"
+      if !OSVM
       rgw.vm.network :private_network, ip: "#{SUBNET}.5#{i}"
+      end
 
       # Virtualbox
       rgw.vm.provider :virtualbox do |vb|
@@ -122,8 +146,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   (0..NMDSS - 1).each do |i|
     config.vm.define "mds#{i}" do |mds|
       mds.vm.hostname = "ceph-mds#{i}"
+      if !OSVM
       mds.vm.network :private_network, ip: "#{SUBNET}.7#{i}"
-
+      end
       # Virtualbox
       mds.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -138,7 +163,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       mds.vm.provider :libvirt do |lv|
         lv.memory = MEMORY
       end
-      
       # Parallels
       mds.vm.provider "parallels" do |prl|
         prl.name = "ceph-mds#{i}"
@@ -150,8 +174,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   (0..NMONS - 1).each do |i|
     config.vm.define "mon#{i}" do |mon|
       mon.vm.hostname = "ceph-mon#{i}"
+      if !OSVM
       mon.vm.network :private_network, ip: "#{SUBNET}.1#{i}"
-
+      end
       # Virtualbox
       mon.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -178,9 +203,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   (0..NOSDS - 1).each do |i|
     config.vm.define "osd#{i}" do |osd|
       osd.vm.hostname = "ceph-osd#{i}"
+      if !OSVM
       osd.vm.network :private_network, ip: "#{SUBNET}.10#{i}"
       osd.vm.network :private_network, ip: "#{SUBNET}.20#{i}"
-
+      end
       # Virtualbox
       osd.vm.provider :virtualbox do |vb|
         (0..1).each do |d|
