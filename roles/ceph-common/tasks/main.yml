@@ -114,6 +114,8 @@
     group: "{{ conf_directory_group }}"
     mode: "{{ conf_directory_mode }}"
 
+- debug: var=config_template
+  
 - name: generate ceph configuration file
   action: config_template
   args:
