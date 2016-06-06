@@ -9,71 +9,98 @@
   when: osd_group_name in group_names
 
 - include: ./installs/install_on_debian.yml
-  when: ansible_os_family == 'Debian'
+  when:
+    - ansible_os_family == 'Debian'
   tags:
     - package-install
 
 - include: ./installs/install_rgw_on_debian.yml
   when:
-    ansible_os_family == 'Debian' and
-    radosgw_frontend == 'apache' and
-    rgw_group_name in group_names
+    - ansible_os_family == 'Debian'
+    - radosgw_frontend == 'apache'
+    - rgw_group_name in group_names
   tags:
     - package-install
 
-# NOTE (leseb): be careful with the following
-# somehow the YAML syntax using "is_ceph_infernalis: {{"
-# does NOT work, so we keep this syntax styling...
-- set_fact:
-    is_ceph_infernalis={{ (ceph_stable and ceph_stable_release not in ceph_stable_releases) }}
+- include: facts.yml
 
 - set_fact:
     dir_owner: ceph
     dir_group: ceph
     dir_mode: "0755"
-  when: is_ceph_infernalis
+  when: is_after_hammer
 
 - set_fact:
     dir_owner: root
     dir_group: root
     dir_mode: "0755"
-  when: not is_ceph_infernalis
+  when: is_before_infernalis
 
 - set_fact:
     key_owner: root
     key_group: root
     key_mode: "0600"
-  when: not is_ceph_infernalis
+  when: is_before_infernalis
 
 - set_fact:
     key_owner: ceph
     key_group: ceph
     key_mode: "0600"
-  when: is_ceph_infernalis
+  when: is_after_hammer
 
 - set_fact:
     activate_file_owner: ceph
     activate_file_group: ceph
     activate_file_mode: "0644"
-  when: is_ceph_infernalis
+  when: is_after_hammer
 
 - set_fact:
     activate_file_owner: root
     activate_file_group: root
     activate_file_mode: "0644"
-  when: not is_ceph_infernalis
+  when: is_before_infernalis
 
 - set_fact:
-    rbd_client_dir_owner: root
-    rbd_client_dir_group: root
-    rbd_client_dir_mode: "0644"
-  when: not is_ceph_infernalis
+    rbd_client_directory_owner: root
+  when:
+    - is_before_infernalis
+    - rbd_client_directory_owner is not defined
+      or not rbd_client_directory_owner
 
 - set_fact:
-    rbd_client_dir_owner: ceph
-    rbd_client_dir_group: ceph
-    rbd_client_dir_mode: "0770"
-  when: is_ceph_infernalis
+    rbd_client_directory_owner: ceph
+  when:
+    - is_after_hammer
+    - rbd_client_directory_owner is not defined
+      or not rbd_client_directory_owner
+
+- set_fact:
+    rbd_client_directory_group: root
+  when:
+    - is_before_infernalis
+    - rbd_client_directory_group is not defined
+      or not rbd_client_directory_group
+
+- set_fact:
+    rbd_client_directory_group: ceph
+  when:
+    - is_after_hammer
+    - rbd_client_directory_group is not defined
+      or not rbd_client_directory_group
+
+- set_fact:
+    rbd_client_directory_mode: "1777"
+  when:
+    - is_before_infernalis
+    - rbd_client_directory_mode is not defined
+      or not rbd_client_directory_mode
+
+- set_fact:
+    rbd_client_directory_mode: "0770"
+  when:
+    - is_after_hammer
+    - rbd_client_directory_mode is not defined
+      or not rbd_client_directory_mode
 
 - name: check for a ceph socket
   shell: "stat /var/run/ceph/*.asok > /dev/null 2>&1"
@@ -92,12 +119,14 @@
   changed_when: false
   become: false
   run_once: true
+  when: cephx or generate_fsid
 
 - name: generate cluster uuid
-  local_action: shell python -c 'import uuid; print str(uuid.uuid4())' | tee {{ fetch_directory }}/ceph_cluster_uuid.conf
+  local_action: shell python -c 'import uuid; print(str(uuid.uuid4()))' | tee {{ fetch_directory }}/ceph_cluster_uuid.conf
     creates="{{ fetch_directory }}/ceph_cluster_uuid.conf"
   register: cluster_uuid
   become: false
+  when: generate_fsid
 
 - name: read cluster uuid if it already exists
   local_action: command cat {{ fetch_directory }}/ceph_cluster_uuid.conf
@@ -105,14 +134,15 @@
   changed_when: false
   register: cluster_uuid
   become: false
+  when: generate_fsid
 
 - name: create ceph conf directory
   file:
     path: /etc/ceph
     state: directory
-    owner: "{{ conf_directory_owner }}"
-    group: "{{ conf_directory_group }}"
-    mode: "{{ conf_directory_mode }}"
+    owner: "{{ dir_owner }}"
+    group: "{{ dir_group }}"
+    mode: "{{ dir_mode }}"
 
 - debug: var=config_template
   
@@ -120,10 +150,10 @@
   action: config_template
   args:
     src: ceph.conf.j2
-    dest: /etc/ceph/ceph.conf
-    owner: "{{ conf_file_owner }}"
-    group: "{{ conf_file_group }}"
-    mode: "{{ conf_file_mode }}"
+    dest: /etc/ceph/{{ cluster }}.conf
+    owner: "{{ dir_owner }}"
+    group: "{{ dir_group }}"
+    mode: "{{ activate_file_mode }}"
     config_overrides: "{{ ceph_conf_overrides }}"
     config_type: ini
   notify:
@@ -142,8 +172,58 @@
 
 - name: create rbd client directory
   file:
-    path: "{{ rbd_client_admin_socket_path }}"
+    path: "{{ item }}"
     state: directory
-    owner: "{{ rbd_client_dir_owner }}"
-    group: "{{ rbd_client_dir_group }}"
-    mode: "{{ rbd_client_dir_mode }}"
+    owner: "{{ rbd_client_directory_owner }}"
+    group: "{{ rbd_client_directory_group }}"
+    mode: "{{ rbd_client_directory_mode }}"
+  with_items:
+    - "{{ rbd_client_admin_socket_path }}"
+    - "{{ rbd_client_log_path }}"
+  when: rbd_client_directories
+
+- name: configure cluster name
+  lineinfile:
+    dest: /etc/sysconfig/ceph
+    insertafter: EOF
+    create: yes
+    line: "CLUSTER={{ cluster }}"
+  when: ansible_os_family == "RedHat"
+
+# NOTE(leseb): we are performing the following check
+# to ensure any Jewel installation will not fail.
+# The following commit https://github.com/ceph/ceph/commit/791eba81a5467dd5de4f1680ed0deb647eb3fb8b
+# fixed a package issue where the path was the wrong.
+# This bug is not yet on all the distros package so we are working around it
+# Impacted versions:
+# - Jewel from UCA: https://bugs.launchpad.net/ubuntu/+source/ceph/+bug/1582773
+# - Jewel from latest Canonical 16.04 distro
+# - All previous versions from Canonical
+# - Infernalis from ceph.com
+- name: check /etc/default/ceph exist
+  stat:
+    path: /etc/default/ceph
+  register: etc_default_ceph
+  when: ansible_os_family == "Debian"
+
+- name: configure cluster name
+  lineinfile:
+    dest: /etc/default/ceph
+    insertafter: EOF
+    create: yes
+    line: "CLUSTER={{ cluster }}"
+  when:
+    - ansible_os_family == "Debian"
+    - etc_default_ceph.stat.exists
+    - not etc_default_ceph.stat.isdir
+
+- name: configure cluster name
+  lineinfile:
+    dest: /etc/default/ceph/ceph
+    insertafter: EOF
+    create: yes
+    line: "CLUSTER={{ cluster }}"
+  when:
+    - ansible_os_family == "Debian"
+    - etc_default_ceph.stat.exists
+    - etc_default_ceph.stat.isdir

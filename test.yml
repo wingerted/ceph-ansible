@@ -1,9 +1,10 @@
 ---
 - hosts: localhost
-  sudo: true
+  become: true
   roles:
-    - ceph-common
+    - ceph.ceph-common
     - ceph-mon
     - ceph-osd
     - ceph-mds
     - ceph-rgw
+    - ceph-fetch-keys

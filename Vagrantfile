@@ -11,6 +11,7 @@ NMONS      = settings['mon_vms']
 NOSDS      = settings['osd_vms']
 NMDSS      = settings['mds_vms']
 NRGWS      = settings['rgw_vms']
+RESTAPI    = settings['restapi']
 CLIENTS    = settings['client_vms']
 SUBNET     = settings['subnet']
 BOX        = settings['vagrant_box']
@@ -18,23 +19,39 @@ MEMORY     = settings['memory']
 STORAGECTL = settings['vagrant_storagectl']
 ETH        = settings['eth']
 
+if BOX == 'openstack'
+  require 'vagrant-openstack-provider'
+  OSVM = true
+  USER = settings['os_ssh_username']
+  OSUSER = settings['os_username']
+  OSPREFIX = "#{OSUSER}-"
+else
+  OSVM = false
+  OSPREFIX = ""
+end
+
 ansible_provision = proc do |ansible|
   ansible.playbook = 'site.yml'
   # Note: Can't do ranges like mon[0-2] in groups because
   # these aren't supported by Vagrant, see
   # https://github.com/mitchellh/vagrant/issues/3539
   ansible.groups = {
-    'mons'        => (0..NMONS - 1).map { |j| "mon#{j}" },
-    'restapis'    => (0..NMONS - 1).map { |j| "mon#{j}" },
-    'osds'        => (0..NOSDS - 1).map { |j| "osd#{j}" },
-    'mdss'        => (0..NMDSS - 1).map { |j| "mds#{j}" },
-    'rgws'        => (0..NRGWS - 1).map { |j| "rgw#{j}" },
-    'clients'     => (0..CLIENTS - 1).map { |j| "client#{j}" }
+    'mons'        => (0..NMONS - 1).map { |j| "#{OSPREFIX}mon#{j}" },
+    'osds'        => (0..NOSDS - 1).map { |j| "#{OSPREFIX}osd#{j}" },
+    'mdss'        => (0..NMDSS - 1).map { |j| "#{OSPREFIX}mds#{j}" },
+    'rgws'        => (0..NRGWS - 1).map { |j| "#{OSPREFIX}rgw#{j}" },
+    'clients'     => (0..CLIENTS - 1).map { |j| "#{OSPREFIX}client#{j}" }
   }
+
+  if RESTAPI then
+    ansible.groups['restapis'] = (0..NMONS - 1).map { |j| "#{OSPREFIX}mon#{j}" }
+  end
+
 
   # In a production deployment, these should be secret
   ansible.extra_vars = {
-    ceph_stable: 'true',
+    journal_collocation: 'true',
+    pool_default_size: '2',
     journal_size: 100,
     monitor_interface: ETH,
     cluster_network: "#{SUBNET}.0/24",
@@ -61,11 +78,32 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     override.vm.synced_folder '.', '/home/vagrant/sync', disabled: true
   end
 
-  (0..CLIENTS - 1).each do |i|
-    config.vm.define "client#{i}" do |client|
-      client.vm.hostname = "ceph-client#{i}"
-      client.vm.network :private_network, ip: "#{SUBNET}.4#{i}"
+  if BOX == 'openstack'
+    # OpenStack VMs
+    config.vm.provider :openstack do |os|
+      config.vm.synced_folder ".", "/home/#{USER}/vagrant", disabled: true
+      config.ssh.username = USER
+      config.ssh.private_key_path = settings['os_ssh_private_key_path']
+      config.ssh.pty = true
+      os.openstack_auth_url = settings['os_openstack_auth_url']
+      os.username = settings['os_username']
+      os.password = settings['os_password']
+      os.tenant_name = settings['os_tenant_name']
+      os.region = settings['os_region']
+      os.flavor = settings['os_flavor']
+      os.image = settings['os_image']
+      os.keypair_name = settings['os_keypair_name']
+      os.security_groups = ['default']
+      config.vm.provision "shell", inline: "true", upload_path: "/home/#{USER}/vagrant-shell"
+    end
+  end
 
+  (0..CLIENTS - 1).each do |i|
+    config.vm.define "#{OSPREFIX}client#{i}" do |client|
+      client.vm.hostname = "#{OSPREFIX}ceph-client#{i}"
+      if !OSVM
+      client.vm.network :private_network, ip: "#{SUBNET}.4#{i}"
+      end
       # Virtualbox
       client.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -90,9 +128,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   (0..NRGWS - 1).each do |i|
-    config.vm.define "rgw#{i}" do |rgw|
-      rgw.vm.hostname = "ceph-rgw#{i}"
+    config.vm.define "#{OSPREFIX}rgw#{i}" do |rgw|
+      rgw.vm.hostname = "#{OSPREFIX}ceph-rgw#{i}"
+      if !OSVM
       rgw.vm.network :private_network, ip: "#{SUBNET}.5#{i}"
+      end
 
       # Virtualbox
       rgw.vm.provider :virtualbox do |vb|
@@ -118,10 +158,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   (0..NMDSS - 1).each do |i|
-    config.vm.define "mds#{i}" do |mds|
-      mds.vm.hostname = "ceph-mds#{i}"
+    config.vm.define "#{OSPREFIX}mds#{i}" do |mds|
+      mds.vm.hostname = "#{OSPREFIX}ceph-mds#{i}"
+      if !OSVM
       mds.vm.network :private_network, ip: "#{SUBNET}.7#{i}"
-
+      end
       # Virtualbox
       mds.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -136,7 +177,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       mds.vm.provider :libvirt do |lv|
         lv.memory = MEMORY
       end
-      
       # Parallels
       mds.vm.provider "parallels" do |prl|
         prl.name = "ceph-mds#{i}"
@@ -146,10 +186,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   (0..NMONS - 1).each do |i|
-    config.vm.define "mon#{i}" do |mon|
-      mon.vm.hostname = "ceph-mon#{i}"
+    config.vm.define "#{OSPREFIX}mon#{i}" do |mon|
+      mon.vm.hostname = "#{OSPREFIX}ceph-mon#{i}"
+      if !OSVM
       mon.vm.network :private_network, ip: "#{SUBNET}.1#{i}"
-
+      end
       # Virtualbox
       mon.vm.provider :virtualbox do |vb|
         vb.customize ['modifyvm', :id, '--memory', "#{MEMORY}"]
@@ -174,17 +215,18 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   (0..NOSDS - 1).each do |i|
-    config.vm.define "osd#{i}" do |osd|
-      osd.vm.hostname = "ceph-osd#{i}"
+    config.vm.define "#{OSPREFIX}osd#{i}" do |osd|
+      osd.vm.hostname = "#{OSPREFIX}ceph-osd#{i}"
+      if !OSVM
       osd.vm.network :private_network, ip: "#{SUBNET}.10#{i}"
       osd.vm.network :private_network, ip: "#{SUBNET}.20#{i}"
-
+      end
       # Virtualbox
       osd.vm.provider :virtualbox do |vb|
         (0..1).each do |d|
           vb.customize ['createhd',
                         '--filename', "disk-#{i}-#{d}",
-                        '--size', '11000']
+                        '--size', '11000'] unless File.exist?("disk-#{i}-#{d}.vdi")
           # Controller names are dependent on the VM being built.
           # It is set when the base box is made in our case ubuntu/trusty64.
           # Be careful while changing the box.

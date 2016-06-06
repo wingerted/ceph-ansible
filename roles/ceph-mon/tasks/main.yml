@@ -7,7 +7,7 @@
 
 - include: create_mds_filesystems.yml
   when:
-    groups[mds_group_name] is defined
+    - groups[mds_group_name] is defined
 
 - include: secure_cluster.yml
   when:

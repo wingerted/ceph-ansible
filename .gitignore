@@ -13,3 +13,4 @@ group_vars/agent
 *.DS_Store
 site.yml
 *.pyc
+*.sw?

@@ -8,8 +8,9 @@ galaxy_info:
     - name: Ubuntu
       versions:
         - trusty
-    - name: RedHat
+    - name: EL
       versions:
         - 7
   categories:
     - system
+dependencies: []

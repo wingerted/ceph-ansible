@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: Sébastien Han
-  description: Installs Ceph RESTAPI
+  description: Installs A Ceph Client
   license: Apache
   min_ansible_version: 1.7
   platforms:
@@ -11,4 +11,4 @@ galaxy_info:
   categories:
     - system
 dependencies:
-  - { role: ceph-common }
+  - { role: ceph.ceph-common }
