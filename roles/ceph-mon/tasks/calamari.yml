@@ -7,13 +7,5 @@
   tags:
     - package-install
 
-- name: install calamari server
-  yum:
-    pkg: calamari-server
-    state: present
-  when: ansible_os_family == 'RedHat'
-  tags:
-    - package-install
-
 - name: initialize the calamari server api
   command: calamari-ctl initialize
