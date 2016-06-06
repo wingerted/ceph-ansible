@@ -12,3 +12,6 @@
 - include: secure_cluster.yml
   when:
     secure_cluster
+
+- include: calamari.yml
+  when: calamari

@@ -19,17 +19,6 @@ MEMORY     = settings['memory']
 STORAGECTL = settings['vagrant_storagectl']
 ETH        = settings['eth']
 
-if BOX == 'openstack'
-  require 'vagrant-openstack-provider'
-  OSVM = true
-  USER = settings['os_ssh_username']
-  OSUSER = settings['os_username']
-  OSPREFIX = "#{OSUSER}-"
-else
-  OSVM = false
-  OSPREFIX = ""
-end
-
 ansible_provision = proc do |ansible|
   ansible.playbook = 'site.yml'
   # Note: Can't do ranges like mon[0-2] in groups because
@@ -50,6 +39,8 @@ ansible_provision = proc do |ansible|
 
   # In a production deployment, these should be secret
   ansible.extra_vars = {
+
+    "ceph_#{settings['ceph_install_source']}"=> 'true',
     journal_collocation: 'true',
     pool_default_size: '2',
     journal_size: 100,

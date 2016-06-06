@@ -2,13 +2,17 @@
 - include: pre_requisite.yml
 
 - include: ./scenarios/journal_collocation.yml
-  when: journal_collocation
+  when:
+    journal_collocation
 
 - include: ./scenarios/raw_multi_journal.yml
-  when: raw_multi_journal
+  when:
+    raw_multi_journal
 
 - include: ./scenarios/osd_directory.yml
-  when: osd_directory
+  when:
+    osd_directory
 
 - include: ./scenarios/bluestore.yml
-  when: osd_objectstore == 'bluestore'
+  when:
+    osd_objectstore == 'bluestore'

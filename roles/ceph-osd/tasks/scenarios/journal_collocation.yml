@@ -20,8 +20,8 @@
     - journal_collocation
     - osd_auto_discovery
 
-- name: manually Prepare osd disk(s)
-  command: "ceph-disk prepare --cluster {{ cluster }} --fs-type btrfs {{ item.2 }}"
+- name: manually prepare osd disk(s)
+  command: "ceph-disk prepare --fs-type btrfs --cluster {{ cluster }} {{ item.2 }}"
   with_together:
     - combined_parted_results.results
     - combined_ispartition_results.results
